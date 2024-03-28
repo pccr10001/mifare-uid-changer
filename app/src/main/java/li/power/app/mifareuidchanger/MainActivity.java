@@ -571,10 +571,12 @@ public class MainActivity extends AppCompatActivity {
                     }
                     mfc.close();
                     showToast("UID updated");
+
                 } catch (IOException | DecoderException | NullPointerException e) {
                     runOnUiThread(() -> writingDialog.dismiss());
                     showToast("Failed to connect to tag, maybe it is not Mifare Classic tag?");
                 }
+                return;
             }
 
             if (dialogView != null) {
