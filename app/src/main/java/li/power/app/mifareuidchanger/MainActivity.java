@@ -4,9 +4,12 @@ import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.*;
 import android.nfc.NfcAdapter;
+import android.nfc.tech.IsoDep;
 import android.nfc.tech.MifareClassic;
+import android.nfc.tech.NfcA;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.widget.*;
 import androidx.annotation.Nullable;
@@ -38,10 +41,13 @@ import com.google.gson.Gson;
 import li.power.app.mifareuidchanger.databinding.ActivityScrollingBinding;
 import li.power.app.mifareuidchanger.model.Settings;
 import li.power.app.mifareuidchanger.model.UidItem;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.w3c.dom.Text;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity {
@@ -56,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
     private PendingIntent pendingIntent;
     private IntentFilter[] intentFilters;
     private String[][] techList;
-    private MifareClassic mifareClassic;
+    private MifareClassic mfc;
 
     private AlertDialog addTagUidDialog;
 
@@ -69,6 +75,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CREATE_FILE = 401;
     private static final int REQUEST_OPEN_FILE = 402;
 
+    private UidItem toWriteUid = null;
+
 
     private GoogleSignInClient googleSignInClient;
 
@@ -80,9 +88,9 @@ public class MainActivity extends AppCompatActivity {
     boolean pendingRestore = false;
     String backupDestination = "";
 
-    public static final String BACKUP_DESTINATION_GDRIVE= "gdrive";
-    public static final String BACKUP_DESTINATION_LOCAL= "local";
+    public static final String BACKUP_DESTINATION_GDRIVE = "gdrive";
 
+    private final int targetSector = 6;
 
 
     @Override
@@ -126,26 +134,32 @@ public class MainActivity extends AppCompatActivity {
 
     private void showWritingUidDialog(UidItem item) {
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
+        alertDialogBuilder.setTitle(String.format("Writing %s (%s) ...", item.getId(), item.getName()));
 
         LayoutInflater inflater = getLayoutInflater();
         writingDialogView = inflater.inflate(R.layout.writing_layout, null);
         alertDialogBuilder.setView(writingDialogView);
         alertDialogBuilder.setCancelable(true);
+        TextView tvMsg = writingDialogView.findViewById(R.id.writing_status);
+        tvMsg.setText("Waiting for tag");
 
-        alertDialogBuilder.setNegativeButton("NO", (dialog, which) -> {
+        alertDialogBuilder.setNegativeButton("CANCEL", (dialog, which) -> {
             dialog.dismiss();
         });
 
         alertDialogBuilder.setOnCancelListener(dialog -> {
             writingDialog = null;
             writingDialogView = null;
+            toWriteUid = null;
         });
 
         alertDialogBuilder.setOnDismissListener(dialog -> {
             writingDialog = null;
             writingDialogView = null;
+            toWriteUid = null;
         });
 
+        toWriteUid = item;
         writingDialog = alertDialogBuilder.create();
         writingDialog.show();
 
@@ -251,13 +265,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         alertDialogBuilder.setPositiveButton("SAVE", null);
-        alertDialogBuilder.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                addTagUidDialog = null;
-                dialogView = null;
-            }
+        alertDialogBuilder.setNegativeButton("CANCEL", (dialog, which) -> {
+            dialog.dismiss();
+            addTagUidDialog = null;
+            dialogView = null;
         });
 
         addTagUidDialog = alertDialogBuilder.create();
@@ -313,7 +324,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveTagUid(String uid, String name) {
-        settings.getList().add(new UidItem(uid, name));
+        boolean exists =false;
+        for(int i = 0;i<settings.getList().size() ;i++){
+            if(uid.equals(settings.getList().get(i).getId())){
+                settings.getList().get(i).setName(name);
+                exists = true;
+                break;
+            }
+        }
+        if(!exists){
+            settings.getList().add(new UidItem(uid, name));
+        }
+
         uidAdapter.notifyItemInserted(settings.getList().size());
         saveList();
     }
@@ -390,13 +412,13 @@ public class MainActivity extends AppCompatActivity {
             try {
                 File file = null;
                 FileList list = drive.files().list().execute();
-                for (File f:list.getFiles()) {
-                    if(f.getName().equals("settings.json")){
+                for (File f : list.getFiles()) {
+                    if (f.getName().equals("settings.json")) {
                         file = f;
                         break;
                     }
                 }
-                if(file == null){
+                if (file == null) {
                     showToast("No backup found in Google Drive");
                     return;
                 }
@@ -405,7 +427,7 @@ public class MainActivity extends AppCompatActivity {
                 Settings newSettings = new Gson().fromJson(baos.toString(), Settings.class);
                 baos.close();
                 updateSettings(newSettings);
-                runOnUiThread(()->{
+                runOnUiThread(() -> {
                     saveList();
                     uidAdapter.notifyDataSetChanged();
                 });
@@ -417,7 +439,7 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void updateSettings(Settings settings){
+    private void updateSettings(Settings settings) {
         this.settings.setKeyA(settings.getKeyA());
         this.settings.setKeyB(settings.getKeyB());
         this.settings.getList().clear();
@@ -434,6 +456,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupNfc() {
+        if (nfcAdapter!= null){
+            return;
+        }
+
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
         if (nfcAdapter == null) {
             showToast("No NFC supported on this phone");
@@ -453,7 +479,7 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
         intentFilters = new IntentFilter[]{filter};
-        techList = new String[][]{new String[]{MifareClassic.class.getName()}};
+        techList = new String[][]{new String[]{NfcA.class.getName()}};
     }
 
     private void enableForegroundDispatch() {
@@ -471,8 +497,49 @@ public class MainActivity extends AppCompatActivity {
     private void handleIntent(Intent intent) {
         if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())
                 || NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction())) {
-            mifareClassic = MifareClassic.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG));
-            scannedUid = Hex.encodeHexString(mifareClassic.getTag().getId()).toUpperCase();
+            NfcA tag = NfcA.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG));
+            scannedUid = Hex.encodeHexString(tag.getTag().getId()).toUpperCase();
+            // writing
+            if (writingDialogView != null) {
+                try {
+                    mfc = MifareClassic.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG));
+                    updateWritingDialog("Connecting to tag");
+                    mfc.connect();
+                    updateWritingDialog("Authenticating with sector 0");
+                    boolean authA = mfc.authenticateSectorWithKeyA(targetSector/4, Hex.decodeHex(settings.getKeyA()));
+                    boolean authB = mfc.authenticateSectorWithKeyB(targetSector/4, Hex.decodeHex(settings.getKeyB()));
+                    if (!authA || !authB) {
+                        writingDialog.dismiss();
+                        showToast("Failed to authenticate with sector 0 of card, maybe wrong keys ?");
+                        return;
+                    }
+
+                    byte[] uid = Hex.decodeHex(toWriteUid.getId());
+                    updateWritingDialog("Reading sector 0");
+                    byte[] sector = mfc.readBlock(targetSector);
+                    Log.d("MUC", "Previous data: "+Hex.encodeHexString(sector));
+                    System.arraycopy(uid, 0, sector, 0, 4);
+                    sector[4] = (byte)(sector[0]^sector[1]^sector[2]^sector[3]);
+                    Log.d("MUC", "To write: "+Hex.encodeHexString(sector));
+                    updateWritingDialog("Writing sector 0");
+                    mfc.writeBlock(targetSector, sector);
+                    byte[] newSector = mfc.readBlock(targetSector);
+
+                    runOnUiThread(() -> writingDialog.dismiss());
+
+                    for(int i=0;i<16;i++){
+                        if(sector.length != newSector.length || sector[i]!= newSector[i]){
+                            showToast("Failed to write sector 0, MAGIC may not exist on your card");
+                        }
+                    }
+                    mfc.close();
+                    showToast("UID updated");
+                } catch (IOException | DecoderException | NullPointerException e) {
+                    runOnUiThread(() -> writingDialog.dismiss());
+                    showToast("Failed to connect to tag, maybe it is not Mifare Classic tag?");
+                }
+            }
+
             if (dialogView != null) {
                 EditText etUid = dialogView.findViewById(R.id.edit_text_default_uid);
                 etUid.setText(scannedUid);
@@ -514,10 +581,10 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_SIGNIN_CODE && resultCode == RESULT_OK) {
             handleSignInIntent(data);
-        }else if(requestCode == REQUEST_CREATE_FILE && resultCode == RESULT_OK){
+        } else if (requestCode == REQUEST_CREATE_FILE && resultCode == RESULT_OK) {
             OutputStream outputStream = null;
             try {
-                if(data == null){
+                if (data == null) {
                     return;
                 }
 
@@ -530,9 +597,9 @@ public class MainActivity extends AppCompatActivity {
                 showToast("Failed to write backup");
             }
 
-        }else if(requestCode == REQUEST_OPEN_FILE && resultCode == RESULT_OK){
+        } else if (requestCode == REQUEST_OPEN_FILE && resultCode == RESULT_OK) {
             try {
-                if(data == null){
+                if (data == null) {
                     return;
                 }
                 Reader in = new InputStreamReader(getContentResolver().openInputStream(data.getData()), StandardCharsets.UTF_8);
@@ -566,13 +633,13 @@ public class MainActivity extends AppCompatActivity {
                 credential)
                 .setApplicationName("Mifare UID Changer")
                 .build();
-        if (pendingBackup && backupDestination == BACKUP_DESTINATION_GDRIVE){
+        if (pendingBackup && backupDestination == BACKUP_DESTINATION_GDRIVE) {
             pendingBackup = false;
             backupDestination = "";
             backupToGDrive();
             return;
         }
-        if (pendingRestore && backupDestination == BACKUP_DESTINATION_GDRIVE){
+        if (pendingRestore && backupDestination == BACKUP_DESTINATION_GDRIVE) {
             pendingRestore = false;
             backupDestination = "";
             restoreFromGDrive();
@@ -582,6 +649,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void showToast(String msg) {
         runOnUiThread(() -> Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show());
+    }
 
+    private void updateWritingDialog(String msg) {
+        runOnUiThread(() -> {
+            TextView tvMsg = writingDialogView.findViewById(R.id.writing_status);
+            tvMsg.setText(msg);
+        });
     }
 }
