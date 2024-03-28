@@ -113,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
 
         settings = getSettings();
         if (settings == null) {
+            showWelcomeDialog();
             settings = new Settings();
             saveSettings("FFFFFFFFFFFF", "FFFFFFFFFFFF");
         }
@@ -130,6 +131,18 @@ public class MainActivity extends AppCompatActivity {
 
         FloatingActionButton fab = binding.fab;
         fab.setOnClickListener(view -> showAddTagDialog());
+    }
+
+    private void showWelcomeDialog(){
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
+        alertDialogBuilder.setTitle("Welcome");
+        TextView tvMsg = new TextView(getApplicationContext());
+        tvMsg.setText("Press the item to write to the magic tag.\nLong press the item to delete the UID.\nYou can scan the tag that you want to copy during this application opened, then press + button to add new UID to list.");
+        alertDialogBuilder.setCancelable(true);
+        alertDialogBuilder.setNegativeButton("CANCEL", (dialog, which) -> {
+            dialog.dismiss();
+        });
+        alertDialogBuilder.create().show();
     }
 
     private void showWritingUidDialog(UidItem item) {
