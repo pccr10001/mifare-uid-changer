@@ -90,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
     public static final String BACKUP_DESTINATION_GDRIVE = "gdrive";
 
-    private final int targetSector = 6;
+    private final int targetSector = 0;
 
 
     @Override
@@ -510,7 +510,7 @@ public class MainActivity extends AppCompatActivity {
                     boolean authB = mfc.authenticateSectorWithKeyB(targetSector/4, Hex.decodeHex(settings.getKeyB()));
                     if (!authA || !authB) {
                         writingDialog.dismiss();
-                        showToast("Failed to authenticate with sector 0 of card, maybe wrong keys ?");
+                        showToast("Failed to authenticate with sector 0 of card, maybe wrong keys?");
                         return;
                     }
 
