@@ -336,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
             settings.getList().add(new UidItem(uid, name));
         }
 
-        uidAdapter.notifyItemInserted(settings.getList().size());
+        uidAdapter.notifyDataSetChanged();
         saveList();
     }
 
