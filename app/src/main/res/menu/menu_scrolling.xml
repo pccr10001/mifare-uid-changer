@@ -1,0 +1,26 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:app="http://schemas.android.com/apk/res-auto"
+      xmlns:tools="http://schemas.android.com/tools"
+      tools:context="li.power.app.mifareuidchanger.MainActivity">
+    <item android:id="@+id/action_settings"
+          android:title="@string/action_settings"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+    <item android:id="@+id/action_backup_gdrive"
+          android:title="@string/action_backup_gdrive"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+    <item android:id="@+id/action_restore_gdrive"
+          android:title="@string/action_restore_gdrive"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+    <item android:id="@+id/action_backup_local"
+          android:title="@string/action_backup_local"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+    <item android:id="@+id/action_restore_local"
+          android:title="@string/action_restore_local"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+
+</menu>

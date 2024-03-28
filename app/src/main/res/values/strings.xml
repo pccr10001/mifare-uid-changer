@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name" >Mifare UID Writer</string>
+    <string name="action_settings" >Settings</string>
+    <string name="action_backup_gdrive">Backup to Google Drive</string>
+    <string name="action_restore_gdrive">Restore from Google Drive</string>
+    <string name="action_backup_local">Backup to local storage</string>
+    <string name="action_restore_local">Restore from local storage</string>
+</resources>
