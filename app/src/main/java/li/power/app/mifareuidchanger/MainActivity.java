@@ -10,7 +10,7 @@ import android.nfc.tech.NfcA;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.util.Log;
-import android.view.LayoutInflater;
+import android.view.*;
 import android.widget.*;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.DividerItemDecoration;
@@ -24,9 +24,6 @@ import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import android.view.View;
-import android.view.Menu;
-import android.view.MenuItem;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.InputStreamContent;
@@ -47,8 +44,13 @@ import org.w3c.dom.Text;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -133,13 +135,21 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(view -> showAddTagDialog());
     }
 
-    private void showWelcomeDialog(){
+    private void showWelcomeDialog() {
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
         alertDialogBuilder.setTitle("Welcome");
         TextView tvMsg = new TextView(getApplicationContext());
-        tvMsg.setText("Press the item to write to the magic tag.\nLong press the item to delete the UID.\nYou can scan the tag that you want to copy during this application opened, then press + button to add new UID to list.");
+        tvMsg.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        tvMsg.setTextSize(16);
+        tvMsg.setGravity(Gravity.CENTER_VERTICAL);
+        tvMsg.setPadding(20, 20, 20, 20);
+        tvMsg.setText("Press the item to write to the magic tag.\n\nLong press the item to delete the UID.\n\nYou can scan the tag that you want to copy during this application opened,\nthen press + button to add new UID to list.");
+        LinearLayout layout = new LinearLayout(getApplicationContext());
+        layout.addView(tvMsg);
+        alertDialogBuilder.setView(layout);
         alertDialogBuilder.setCancelable(true);
-        alertDialogBuilder.setNegativeButton("CANCEL", (dialog, which) -> {
+        alertDialogBuilder.setNegativeButton("OK", (dialog, which) -> {
             dialog.dismiss();
         });
         alertDialogBuilder.create().show();
@@ -291,7 +301,7 @@ public class MainActivity extends AppCompatActivity {
 
                 String uid = uidEditText.getText().toString().trim();
 
-                boolean isValidUid = isValidHex(uid);
+                boolean isValidUid = isValidHex(uid) && uid.length() == 8;
 
                 if (!isValidUid) {
                     uidEditText.setError("Please input valid HEX string (4 bytes)");
@@ -337,15 +347,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveTagUid(String uid, String name) {
-        boolean exists =false;
-        for(int i = 0;i<settings.getList().size() ;i++){
-            if(uid.equals(settings.getList().get(i).getId())){
+        boolean exists = false;
+        if(name.isEmpty()){
+            name="Tag "+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMdd-hhmmss"));
+        }
+        for (int i = 0; i < settings.getList().size(); i++) {
+            if (uid.equals(settings.getList().get(i).getId())) {
                 settings.getList().get(i).setName(name);
                 exists = true;
                 break;
             }
         }
-        if(!exists){
+        if (!exists) {
             settings.getList().add(new UidItem(uid, name));
         }
 
@@ -469,7 +482,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupNfc() {
-        if (nfcAdapter!= null){
+        if (nfcAdapter != null) {
             return;
         }
 
@@ -512,6 +525,7 @@ public class MainActivity extends AppCompatActivity {
                 || NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction())) {
             NfcA tag = NfcA.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG));
             scannedUid = Hex.encodeHexString(tag.getTag().getId()).toUpperCase();
+
             // writing
             if (writingDialogView != null) {
                 try {
@@ -519,8 +533,8 @@ public class MainActivity extends AppCompatActivity {
                     updateWritingDialog("Connecting to tag");
                     mfc.connect();
                     updateWritingDialog("Authenticating with sector 0");
-                    boolean authA = mfc.authenticateSectorWithKeyA(targetSector/4, Hex.decodeHex(settings.getKeyA()));
-                    boolean authB = mfc.authenticateSectorWithKeyB(targetSector/4, Hex.decodeHex(settings.getKeyB()));
+                    boolean authA = mfc.authenticateSectorWithKeyA(targetSector / 4, Hex.decodeHex(settings.getKeyA()));
+                    boolean authB = mfc.authenticateSectorWithKeyB(targetSector / 4, Hex.decodeHex(settings.getKeyB()));
                     if (!authA || !authB) {
                         writingDialog.dismiss();
                         showToast("Failed to authenticate with sector 0 of card, maybe wrong keys?");
@@ -530,18 +544,18 @@ public class MainActivity extends AppCompatActivity {
                     byte[] uid = Hex.decodeHex(toWriteUid.getId());
                     updateWritingDialog("Reading sector 0");
                     byte[] sector = mfc.readBlock(targetSector);
-                    Log.d("MUC", "Previous data: "+Hex.encodeHexString(sector));
+                    Log.d("MUC", "Previous data: " + Hex.encodeHexString(sector));
                     System.arraycopy(uid, 0, sector, 0, 4);
-                    sector[4] = (byte)(sector[0]^sector[1]^sector[2]^sector[3]);
-                    Log.d("MUC", "To write: "+Hex.encodeHexString(sector));
+                    sector[4] = (byte) (sector[0] ^ sector[1] ^ sector[2] ^ sector[3]);
+                    Log.d("MUC", "To write: " + Hex.encodeHexString(sector));
                     updateWritingDialog("Writing sector 0");
                     mfc.writeBlock(targetSector, sector);
                     byte[] newSector = mfc.readBlock(targetSector);
 
                     runOnUiThread(() -> writingDialog.dismiss());
 
-                    for(int i=0;i<16;i++){
-                        if(sector.length != newSector.length || sector[i]!= newSector[i]){
+                    for (int i = 0; i < 16; i++) {
+                        if (sector.length != newSector.length || sector[i] != newSector[i]) {
                             showToast("Failed to write sector 0, MAGIC may not exist on your card");
                         }
                     }
@@ -556,7 +570,10 @@ public class MainActivity extends AppCompatActivity {
             if (dialogView != null) {
                 EditText etUid = dialogView.findViewById(R.id.edit_text_default_uid);
                 etUid.setText(scannedUid);
+            } else {
+                showAddTagDialog();
             }
+
         }
     }
 
