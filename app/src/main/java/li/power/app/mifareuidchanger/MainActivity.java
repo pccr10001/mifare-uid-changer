@@ -99,8 +99,8 @@ public class MainActivity extends AppCompatActivity {
 
         recyclerView = findViewById(R.id.rv_uid_list);
 
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));     //垂直向下排列
-        recyclerView.addItemDecoration(new DividerItemDecoration(this,    //分隔線
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.addItemDecoration(new DividerItemDecoration(this,
                 DividerItemDecoration.VERTICAL));
 
         settings = getSettings();
@@ -211,14 +211,14 @@ public class MainActivity extends AppCompatActivity {
                 boolean isValidKeyB = isValidHex(keyB) && keyB.length() == 12;
 
                 if (!isValidKeyA) {
-                    keyAEditText.setError("請輸入有效的 HEX 字串 (6 bytes)");
+                    keyAEditText.setError("Please input valid HEX string (6 bytes)");
 
                 } else {
                     keyAEditText.setError(null);
                 }
 
                 if (!isValidKeyB) {
-                    keyBEditText.setError("請輸入有效的 HEX 字串 (6 bytes)");
+                    keyBEditText.setError("Please input valid HEX string (6 bytes)");
                 } else {
                     keyBEditText.setError(null);
                 }
@@ -270,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
                 boolean isValidUid = isValidHex(uid);
 
                 if (!isValidUid) {
-                    uidEditText.setError("請輸入有效的 HEX 字串 (4 bytes)");
+                    uidEditText.setError("Please input valid HEX string (4 bytes)");
                 } else {
                     uidEditText.setError(null);
                 }

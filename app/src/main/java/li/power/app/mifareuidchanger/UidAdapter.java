@@ -21,7 +21,7 @@ public class UidAdapter extends RecyclerView.Adapter<UidAdapter.ViewHolder> {
     private OnClickListener onLongClickListener;
 
 
-    class ViewHolder extends RecyclerView.ViewHolder {           //綁定recycle的套件
+    class ViewHolder extends RecyclerView.ViewHolder {
         public TextView tvItem;
         public ViewHolder(View holder) {
             super(holder);
@@ -67,7 +67,6 @@ public class UidAdapter extends RecyclerView.Adapter<UidAdapter.ViewHolder> {
         });
     }
 
-    //RecyclerView長度
     @Override
     public int getItemCount() {
         return itemList.size();
