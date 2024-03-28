@@ -526,6 +526,14 @@ public class MainActivity extends AppCompatActivity {
             NfcA tag = NfcA.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG));
             scannedUid = Hex.encodeHexString(tag.getTag().getId()).toUpperCase();
 
+            if(scannedUid.length()> 8){
+                showToast("Non-4bytes UID detected, we can't supported it, truncated to 4 bytes");
+                scannedUid = scannedUid.substring(0,8);
+            }else if(scannedUid.length()<8){
+                showToast("Non-4bytes UID detected, we can't supported it");
+                return;
+            }
+
             // writing
             if (writingDialogView != null) {
                 try {
