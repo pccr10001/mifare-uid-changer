@@ -411,6 +411,7 @@ public class MainActivity extends AppCompatActivity {
                         .execute();
                 showToast("Backup uploaded");
             } catch (IOException e) {
+                e.printStackTrace();
                 showToast("Failed to upload to Google Drive, " + e.toString());
             }
         }).start();
@@ -461,6 +462,7 @@ public class MainActivity extends AppCompatActivity {
                 showToast("Settings restored");
             } catch (Exception e) {
                 showToast("Failed to restore from Google Drive, " + e.toString());
+                e.printStackTrace();
             }
         }).start();
     }
