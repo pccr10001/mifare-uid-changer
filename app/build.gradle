@@ -1,6 +1,5 @@
-plugins {
-    id 'com.android.application'
-}
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace 'li.power.app.mifareuidchanger'
@@ -10,10 +9,14 @@ android {
         applicationId "li.power.app.mifareuidchanger"
         minSdk 28
         targetSdk 33
-        versionCode 3
-        versionName "1.2"
+        versionCode 6
+        versionName "1.3.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
     }
 
     buildTypes {
@@ -23,8 +26,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
     buildFeatures {
         viewBinding true
@@ -40,6 +43,9 @@ android {
         exclude 'META-INF/ASL2.0'
         exclude("META-INF/*.kotlin_module")
     }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
 }
 
 dependencies {
@@ -52,10 +58,11 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation group: 'commons-codec', name: 'commons-codec', version: '1.16.0'
-    implementation 'com.google.android.gms:play-services-auth:21.0.0'
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
     implementation group: 'com.google.apis', name: 'google-api-services-drive', version: 'v3-rev20240123-2.0.0'
     implementation group: 'com.google.http-client', name: 'google-http-client-gson', version: '1.44.1'
     implementation group: 'com.google.api-client', name: 'google-api-client-android', version: '2.4.0'
+    implementation 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
 
 
 

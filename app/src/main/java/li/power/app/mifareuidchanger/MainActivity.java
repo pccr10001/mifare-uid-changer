@@ -4,11 +4,9 @@ import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.*;
 import android.nfc.NfcAdapter;
-import android.nfc.tech.IsoDep;
 import android.nfc.tech.MifareClassic;
 import android.nfc.tech.NfcA;
 import android.os.Bundle;
-import android.provider.DocumentsContract;
 import android.util.Log;
 import android.view.*;
 import android.widget.*;
@@ -16,16 +14,20 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.identity.AuthorizationRequest;
+import com.google.android.gms.auth.api.identity.AuthorizationResult;
+import com.google.android.gms.auth.api.identity.Identity;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.Scope;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
-import com.google.api.client.http.FileContent;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
@@ -33,24 +35,18 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
-import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
 import li.power.app.mifareuidchanger.databinding.ActivityScrollingBinding;
 import li.power.app.mifareuidchanger.model.Settings;
 import li.power.app.mifareuidchanger.model.UidItem;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.w3c.dom.Text;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
+import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -294,6 +290,8 @@ public class MainActivity extends AppCompatActivity {
             dialogView = null;
         });
 
+        alertDialogBuilder.setNeutralButton("RANDOM",null);
+
         addTagUidDialog = alertDialogBuilder.create();
         addTagUidDialog.setOnShowListener(dialogInterface -> {
             Button button = addTagUidDialog.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -319,6 +317,9 @@ public class MainActivity extends AppCompatActivity {
             });
         });
         addTagUidDialog.show();
+        addTagUidDialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener( (view) -> {
+            uidEditText.setText(getRandomUid());
+        });
     }
 
     private boolean isValidHex(String hexString) {
@@ -348,8 +349,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void saveTagUid(String uid, String name) {
         boolean exists = false;
-        if(name.isEmpty()){
-            name="Tag "+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMdd-hhmmss"));
+        if (name.isEmpty()) {
+            name = "Tag " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMdd-hhmmss"));
         }
         for (int i = 0; i < settings.getList().size(); i++) {
             if (uid.equals(settings.getList().get(i).getId())) {
@@ -402,6 +403,8 @@ public class MainActivity extends AppCompatActivity {
 
         File fileMetaData = new File();
         fileMetaData.setName("settings.json");
+        fileMetaData.setParents(Collections.singletonList("appDataFolder"));
+
         String settingsStr = new Gson().toJson(settings);
         new Thread(() -> {
             try {
@@ -438,7 +441,10 @@ public class MainActivity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 File file = null;
-                FileList list = drive.files().list().execute();
+
+                FileList list = drive.files().list()
+                        .setSpaces("appDataFolder")
+                        .execute();
                 for (File f : list.getFiles()) {
                     if (f.getName().equals("settings.json")) {
                         file = f;
@@ -528,10 +534,10 @@ public class MainActivity extends AppCompatActivity {
             NfcA tag = NfcA.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG));
             scannedUid = Hex.encodeHexString(tag.getTag().getId()).toUpperCase();
 
-            if(scannedUid.length()> 8){
+            if (scannedUid.length() > 8) {
                 showToast("Non-4bytes UID detected, we can't supported it, truncated to 4 bytes");
-                scannedUid = scannedUid.substring(0,8);
-            }else if(scannedUid.length()<8){
+                scannedUid = scannedUid.substring(0, 8);
+            } else if (scannedUid.length() < 8) {
                 showToast("Non-4bytes UID detected, we can't supported it");
                 return;
             }
@@ -579,6 +585,12 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
+            for (UidItem item : settings.getList()) {
+                if (item.getId().equals(scannedUid)) {
+                    return;
+                }
+            }
+
             if (dialogView != null) {
                 EditText etUid = dialogView.findViewById(R.id.edit_text_default_uid);
                 etUid.setText(scannedUid);
@@ -609,13 +621,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void requestSignIn() {
-        GoogleSignInOptions signInOptions = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestEmail()
-                .requestScopes(new Scope(DriveScopes.DRIVE_APPDATA))
-                .build();
-
-        googleSignInClient = GoogleSignIn.getClient(this, signInOptions);
-        startActivityForResult(googleSignInClient.getSignInIntent(), REQUEST_SIGNIN_CODE);
+        List<Scope> requestedScopes = List.of(new Scope(DriveScopes.DRIVE_APPDATA));
+        AuthorizationRequest authorizationRequest = AuthorizationRequest.builder().setRequestedScopes(requestedScopes).build();
+        Identity.getAuthorizationClient(this)
+                .authorize(authorizationRequest)
+                .addOnSuccessListener(
+                        authorizationResult -> {
+                            if (authorizationResult.hasResolution()) {
+                                // Access needs to be granted by the user
+                                PendingIntent pendingIntent = authorizationResult.getPendingIntent();
+                                try {
+                                    startIntentSenderForResult(pendingIntent.getIntentSender(),
+                                            REQUEST_SIGNIN_CODE, null, 0, 0, 0, null);
+                                } catch (IntentSender.SendIntentException e) {
+                                    Log.e("Auth", "Couldn't start Authorization UI: " + e.getLocalizedMessage());
+                                }
+                            } else {
+                                initializeDriveClient(authorizationResult);
+                            }
+                        })
+                .addOnFailureListener(e -> Log.e("Auth", "Failed to authorize", e));
     }
 
     @Override
@@ -658,35 +683,38 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void handleSignInIntent(Intent data) {
-        GoogleSignIn.getSignedInAccountFromIntent(data)
-                .addOnSuccessListener(googleSignInAccount -> {
-                    GoogleAccountCredential credential = GoogleAccountCredential
-                            .usingOAuth2(this, Collections.singleton(DriveScopes.DRIVE_FILE));
-                    credential.setSelectedAccount(googleSignInAccount.getAccount());
-                    initializeDriveClient(credential);
-                })
-                .addOnFailureListener(e -> e.printStackTrace());
+        AuthorizationResult authorizationResult = null;
+        try {
+            authorizationResult = Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(data);
+            initializeDriveClient(authorizationResult);
+        } catch (ApiException e) {
+            e.printStackTrace();
+            Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
-    private void initializeDriveClient(GoogleAccountCredential credential) {
-        drive = new Drive.Builder(
-                new NetHttpTransport(),
-                new GsonFactory(),
-                credential)
-                .setApplicationName("Mifare UID Changer")
-                .build();
-        if (pendingBackup && backupDestination == BACKUP_DESTINATION_GDRIVE) {
-            pendingBackup = false;
-            backupDestination = "";
-            backupToGDrive();
-            return;
-        }
-        if (pendingRestore && backupDestination == BACKUP_DESTINATION_GDRIVE) {
-            pendingRestore = false;
-            backupDestination = "";
-            restoreFromGDrive();
-            return;
-        }
+    private void initializeDriveClient(AuthorizationResult authorizationResult) {
+        GoogleCredentials credentials =  GoogleCredentials.create(new AccessToken(authorizationResult.getAccessToken(), null));
+            HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(
+                    credentials);
+            drive = new Drive.Builder(new NetHttpTransport(),
+                    GsonFactory.getDefaultInstance(), requestInitializer)
+                    .setApplicationName("Mifare UID Changer")
+                    .build();
+
+            if (pendingBackup && Objects.equals(backupDestination, BACKUP_DESTINATION_GDRIVE)) {
+                pendingBackup = false;
+                backupDestination = "";
+                backupToGDrive();
+                return;
+            }
+
+            if (pendingRestore && Objects.equals(backupDestination, BACKUP_DESTINATION_GDRIVE)) {
+                pendingRestore = false;
+                backupDestination = "";
+                restoreFromGDrive();
+                return;
+            }
     }
 
     private void showToast(String msg) {
@@ -698,5 +726,18 @@ public class MainActivity extends AppCompatActivity {
             TextView tvMsg = writingDialogView.findViewById(R.id.writing_status);
             tvMsg.setText(msg);
         });
+    }
+
+    public static String getRandomUid() {
+        Random random = new Random();
+        byte[] bytes = new byte[4];
+        random.nextBytes(bytes);
+
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : bytes) {
+            hexString.append(String.format("%02X", b & 0xFF));
+        }
+
+        return hexString.toString();
     }
 }
