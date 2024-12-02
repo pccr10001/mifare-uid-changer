@@ -491,18 +491,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupNfc() {
         if (nfcAdapter != null) {
-            return;
+            showToast("No NFC supported on this phone");
+            finish();
         }
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
         if (nfcAdapter == null) {
             showToast("No NFC supported on this phone");
-            return;
+            finish();
         }
 
         if (!nfcAdapter.isEnabled()) {
             showToast("NFC Adapter is disabled");
-            return;
+            finish();
         }
 
         pendingIntent = PendingIntent.getActivity(this, 1, new Intent(this, this.getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_MUTABLE);
@@ -558,6 +559,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     byte[] uid = Hex.decodeHex(toWriteUid.getId());
+
                     updateWritingDialog("Reading sector 0");
                     byte[] sector = mfc.readBlock(targetSector);
                     Log.d("MUC", "Previous data: " + Hex.encodeHexString(sector));
