@@ -271,7 +271,6 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
         alertDialogBuilder.setTitle("Add UID");
 
-
         LayoutInflater inflater = getLayoutInflater();
         dialogView = inflater.inflate(R.layout.add_tag_layout, null);
         alertDialogBuilder.setView(dialogView);
@@ -491,8 +490,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupNfc() {
         if (nfcAdapter != null) {
-            showToast("No NFC supported on this phone");
-            finish();
+            return;
         }
 
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
