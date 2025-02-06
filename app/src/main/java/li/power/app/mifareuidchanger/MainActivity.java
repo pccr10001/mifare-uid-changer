@@ -482,8 +482,9 @@ public class MainActivity extends AppCompatActivity {
     private void restoreFromLocal() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/octet-stream");
-        intent.putExtra(Intent.EXTRA_TITLE, "muc_settings.json");
+        String[] mimetypes = {"application/json", "application/octet-stream"};
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimetypes);
+        intent.setType("*/*");
 
         startActivityForResult(intent, REQUEST_OPEN_FILE);
     }
