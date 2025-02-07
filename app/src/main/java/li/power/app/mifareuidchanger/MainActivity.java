@@ -531,6 +531,7 @@ public class MainActivity extends AppCompatActivity {
     private void handleIntent(Intent intent) {
         if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())
                 || NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction())) {
+
             NfcA tag = NfcA.get(intent.getParcelableExtra(NfcAdapter.EXTRA_TAG));
             scannedUid = Hex.encodeHexString(tag.getTag().getId()).toUpperCase();
 
@@ -561,6 +562,13 @@ public class MainActivity extends AppCompatActivity {
 
                     updateWritingDialog("Reading sector 0");
                     byte[] sector = mfc.readBlock(targetSector);
+
+                    if(sector.length!= 16){
+                        writingDialog.dismiss();
+                        showToast("Failed to read sector 0 of card, maybe wrong keys or not Mifare Classic 1K card?");
+                        return;
+                    }
+
                     Log.d("MUC", "Previous data: " + Hex.encodeHexString(sector));
                     System.arraycopy(uid, 0, sector, 0, 4);
                     sector[4] = (byte) (sector[0] ^ sector[1] ^ sector[2] ^ sector[3]);
@@ -594,7 +602,10 @@ public class MainActivity extends AppCompatActivity {
 
             if (dialogView != null) {
                 EditText etUid = dialogView.findViewById(R.id.edit_text_default_uid);
-                etUid.setText(scannedUid);
+                if(scannedUid != null) {
+                    etUid.setText(scannedUid);
+                }
+
             } else {
                 showAddTagDialog();
             }
@@ -677,8 +688,8 @@ public class MainActivity extends AppCompatActivity {
                 saveList();
                 uidAdapter.notifyDataSetChanged();
                 showToast("Backup restored");
-            } catch (IOException e) {
-                showToast("Failed to read backup");
+            } catch (Exception e) {
+                showToast("Failed to read backup or the backup file is not valid");
             }
         }
     }
