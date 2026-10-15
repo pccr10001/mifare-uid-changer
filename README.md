@@ -10,6 +10,8 @@ For gen 1 magic cards, you need PN532 or ACR122U to write gen 1 card, NOT THIS A
 * Write block 0 to magic Mifare Classic card gen 2.
 * Backup and restore from Google Drive and local storage.
 * Scan any 4-bytes UID tags to get UID and save it for writing .
+* Sort UIDs by name or UID.
+* Filter UIDs by category.
 
 ### Dependencies
 * A magic Mifare Classic card has its block 0 is non-readonly.

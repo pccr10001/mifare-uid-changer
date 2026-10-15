@@ -22,5 +22,17 @@
           android:title="@string/action_restore_local"
           android:orderInCategory="100"
           app:showAsAction="never"/>
+    <item android:id="@+id/action_sort_name"
+          android:title="@string/action_sort_name"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+    <item android:id="@+id/action_sort_uid"
+          android:title="@string/action_sort_uid"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
+    <item android:id="@+id/action_filter_category"
+          android:title="@string/action_filter_category"
+          android:orderInCategory="100"
+          app:showAsAction="never"/>
 
 </menu>
